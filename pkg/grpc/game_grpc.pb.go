@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MatchService_FindMatch_FullMethodName = "/MatchService/FindMatch"
+	MatchService_FindMatch_FullMethodName = "/sample_service.MatchService/FindMatch"
 )
 
 // MatchServiceClient is the client API for MatchService service.
@@ -110,7 +110,7 @@ type MatchService_FindMatchServer = grpc.ServerStreamingServer[MatchResponse]
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var MatchService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "MatchService",
+	ServiceName: "sample_service.MatchService",
 	HandlerType: (*MatchServiceServer)(nil),
 	Methods:     []grpc.MethodDesc{},
 	Streams: []grpc.StreamDesc{

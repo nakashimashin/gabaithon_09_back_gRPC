@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -12,6 +12,7 @@ import (
 
 	gamepb "gabaithon-grpc-server/pkg/grpc"
 
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -32,18 +33,33 @@ func NewMatchServer() *MatchServer {
 
 func main() {
 	port := 8081
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+	grpcServer := grpc.NewServer()
+	gamepb.RegisterMatchServiceServer(grpcServer, NewMatchServer())
+	reflection.Register(grpcServer)
+
+	wrappedGrpc := grpcweb.WrapServer(grpcServer,
+		grpcweb.WithCorsForRegisteredEndpointsOnly(false),
+		grpcweb.WithOriginFunc(func(origin string) bool {
+			return true
+		}),
+	)
+
+	handler := func(resp http.ResponseWriter, req *http.Request) {
+		if wrappedGrpc.IsGrpcWebRequest(req) || wrappedGrpc.IsGrpcWebSocketRequest(req) {
+			wrappedGrpc.ServeHTTP(resp, req)
+			return
+		}
+		http.NotFound(resp, req)
 	}
 
-	s := grpc.NewServer()
-	gamepb.RegisterMatchServiceServer(s, NewMatchServer())
-	reflection.Register(s)
+	httpServer := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: http.HandlerFunc(handler),
+	}
 
+	log.Printf("Server started on port %v", port)
 	go func() {
-		log.Printf("Server started on port %v", port)
-		if err := s.Serve(listener); err != nil {
+		if err := httpServer.ListenAndServe(); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}
 	}()
@@ -52,7 +68,7 @@ func main() {
 	signal.Notify(quit, os.Interrupt)
 	<-quit
 	log.Println("Stopping server...")
-	s.GracefulStop()
+	grpcServer.GracefulStop()
 }
 
 func (s *MatchServer) FindMatch(req *gamepb.MatchRequest, stream gamepb.MatchService_FindMatchServer) error {
@@ -102,5 +118,4 @@ func (s *MatchServer) FindMatch(req *gamepb.MatchRequest, stream gamepb.MatchSer
 			return fmt.Errorf("timeout: no match found for Player ID: %s in room %s", req.PlayerId, roomID)
 		}
 	}
-
 }

@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package sample_service;
+
 option go_package = "pkg/grpc";
 
 service MatchService {
@@ -14,3 +16,4 @@ message MatchResponse {
     string message = 1;
     string room_id = 2;
 }
+
