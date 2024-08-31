@@ -15,5 +15,6 @@ message MatchRequest {
 message MatchResponse {
     string message = 1;
     string room_id = 2;
+    string player_id = 3;
 }
 

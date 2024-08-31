@@ -91,7 +91,11 @@ func (s *MatchServer) FindMatch(req *gamepb.MatchRequest, stream gamepb.MatchSer
 		select {
 		case peer := <-queue:
 			if peer.PlayerId != req.PlayerId {
-				response := &gamepb.MatchResponse{Message: "Match found with " + peer.PlayerId + " in room " + roomID}
+				response := &gamepb.MatchResponse{
+					Message:  "Match found with " + peer.PlayerId + " in room " + roomID,
+					RoomId:   roomID,
+					PlayerId: peer.PlayerId,
+				}
 				if err := stream.Send(response); err != nil {
 					return err
 				}
