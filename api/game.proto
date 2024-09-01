@@ -4,17 +4,46 @@ package sample_service;
 
 option go_package = "pkg/grpc";
 
+enum GameType {
+    KEY_COLLECTION = 0; // Key collection game
+}
+
+message GameRequest {
+    string room_id = 1;
+    string player_id = 2;
+    GameType game_type = 3;
+}
+
 service MatchService {
     rpc FindMatch(MatchRequest) returns (stream MatchResponse);
+    rpc StartGame(GameRequest) returns (stream KeyCollectGameStatus);
+    rpc CollectKey(KeyCollectRequest) returns (KeyCollectGameStatus);
 }
 
 message MatchRequest {
     string player_id = 1;
+    GameType game_type = 2;
 }
 
 message MatchResponse {
     string message = 1;
     string room_id = 2;
     string player_id = 3;
+    GameType game_type = 4;
 }
 
+message KeyCollectRequest {
+    string room_id = 1;
+    string player_id = 2;
+    int32 total_keys = 3;
+    GameType game_type = 4;
+}
+
+message KeyCollectGameStatus {
+    string message = 1;
+    string room_id = 2;
+    map<string, int32> player_keys = 3;
+    bool game_over = 4;
+    string winner_id = 5;
+    GameType game_type = 6;
+}
