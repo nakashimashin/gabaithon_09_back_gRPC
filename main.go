@@ -1,7 +1,7 @@
 package main
 
 import (
-	// "context"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -104,53 +104,53 @@ func (s *MatchServer) FindMatch(req *gamepb.MatchRequest, stream gamepb.MatchSer
 	}
 }
 
-// func (s *MatchServer) StartGame(req *gamepb.GameRequest, stream gamepb.MatchService_StartGameServer) error {
-// 	s.lock.Lock()
-// 	session, exists := s.rooms[req.RoomId]
-// 	if !exists {
-// 		s.lock.Unlock()
-// 		return fmt.Errorf("room not found")
-// 	}
-// 	s.lock.Unlock()
+func (s *MatchServer) StartGame(req *gamepb.GameRequest, stream gamepb.MatchService_StartGameServer) error {
+	s.lock.Lock()
+	session, exists := s.rooms[req.RoomId]
+	if !exists {
+		s.lock.Unlock()
+		return fmt.Errorf("room not found")
+	}
+	s.lock.Unlock()
 
-// 	status := &gamepb.KeyCollectGameStatus{
-// 		Message:    "Game started",
-// 		RoomId:     req.RoomId,
-// 		PlayerKeys: session.playerKeys,
-// 		GameOver:   session.gameOver,
-// 		WinnerId:   session.winnerID,
-// 		GameType:   req.GameType,
-// 	}
-// 	if err := stream.Send(status); err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
+	status := &gamepb.KeyCollectGameStatus{
+		Message:    "Game started",
+		RoomId:     req.RoomId,
+		PlayerKeys: session.playerKeys,
+		GameOver:   session.gameOver,
+		WinnerId:   session.winnerID,
+		GameType:   req.GameType,
+	}
+	if err := stream.Send(status); err != nil {
+		return err
+	}
+	return nil
+}
 
-// func (s *MatchServer) CollectKey(ctx context.Context, req *gamepb.KeyCollectRequest) (*gamepb.KeyCollectGameStatus, error) {
-// 	s.lock.Lock()
-// 	session, exists := s.rooms[req.RoomId]
-// 	if !exists {
-// 		s.lock.Unlock()
-// 		return nil, fmt.Errorf("room not found")
-// 	}
+func (s *MatchServer) CollectKey(ctx context.Context, req *gamepb.KeyCollectRequest) (*gamepb.KeyCollectGameStatus, error) {
+	s.lock.Lock()
+	session, exists := s.rooms[req.RoomId]
+	if !exists {
+		s.lock.Unlock()
+		return nil, fmt.Errorf("room not found")
+	}
 
-// 	session.playerKeys[req.PlayerId] = req.TotalKeys
-// 	if req.TotalKeys >= 5 {
-// 		session.gameOver = true
-// 		session.winnerID = req.PlayerId
-// 	}
-// 	s.lock.Unlock()
+	session.playerKeys[req.PlayerId] = req.TotalKeys
+	if req.TotalKeys >= 5 {
+		session.gameOver = true
+		session.winnerID = req.PlayerId
+	}
+	s.lock.Unlock()
 
-// 	return &gamepb.KeyCollectGameStatus{
-// 		Message:    "Key collected",
-// 		RoomId:     req.RoomId,
-// 		PlayerKeys: session.playerKeys,
-// 		GameOver:   session.gameOver,
-// 		WinnerId:   session.winnerID,
-// 		GameType:   req.GameType,
-// 	}, nil
-// }
+	return &gamepb.KeyCollectGameStatus{
+		Message:    "Key collected",
+		RoomId:     req.RoomId,
+		PlayerKeys: session.playerKeys,
+		GameOver:   session.gameOver,
+		WinnerId:   session.winnerID,
+		GameType:   req.GameType,
+	}, nil
+}
 
 func main() {
 	port := 8081
