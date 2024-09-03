@@ -19,7 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MatchService_FindMatch_FullMethodName = "/sample_service.MatchService/FindMatch"
+	MatchService_FindMatch_FullMethodName  = "/sample_service.MatchService/FindMatch"
+	MatchService_StartGame_FullMethodName  = "/sample_service.MatchService/StartGame"
+	MatchService_CollectKey_FullMethodName = "/sample_service.MatchService/CollectKey"
 )
 
 // MatchServiceClient is the client API for MatchService service.
@@ -27,6 +29,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MatchServiceClient interface {
 	FindMatch(ctx context.Context, in *MatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[MatchResponse], error)
+	StartGame(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[KeyCollectGameStatus], error)
+	CollectKey(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[KeyCollectRequest, KeyCollectGameStatus], error)
 }
 
 type matchServiceClient struct {
@@ -56,11 +60,45 @@ func (c *matchServiceClient) FindMatch(ctx context.Context, in *MatchRequest, op
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type MatchService_FindMatchClient = grpc.ServerStreamingClient[MatchResponse]
 
+func (c *matchServiceClient) StartGame(ctx context.Context, in *GameRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[KeyCollectGameStatus], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &MatchService_ServiceDesc.Streams[1], MatchService_StartGame_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[GameRequest, KeyCollectGameStatus]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MatchService_StartGameClient = grpc.ServerStreamingClient[KeyCollectGameStatus]
+
+func (c *matchServiceClient) CollectKey(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[KeyCollectRequest, KeyCollectGameStatus], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &MatchService_ServiceDesc.Streams[2], MatchService_CollectKey_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[KeyCollectRequest, KeyCollectGameStatus]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MatchService_CollectKeyClient = grpc.BidiStreamingClient[KeyCollectRequest, KeyCollectGameStatus]
+
 // MatchServiceServer is the server API for MatchService service.
 // All implementations must embed UnimplementedMatchServiceServer
 // for forward compatibility.
 type MatchServiceServer interface {
 	FindMatch(*MatchRequest, grpc.ServerStreamingServer[MatchResponse]) error
+	StartGame(*GameRequest, grpc.ServerStreamingServer[KeyCollectGameStatus]) error
+	CollectKey(grpc.BidiStreamingServer[KeyCollectRequest, KeyCollectGameStatus]) error
 	mustEmbedUnimplementedMatchServiceServer()
 }
 
@@ -73,6 +111,12 @@ type UnimplementedMatchServiceServer struct{}
 
 func (UnimplementedMatchServiceServer) FindMatch(*MatchRequest, grpc.ServerStreamingServer[MatchResponse]) error {
 	return status.Errorf(codes.Unimplemented, "method FindMatch not implemented")
+}
+func (UnimplementedMatchServiceServer) StartGame(*GameRequest, grpc.ServerStreamingServer[KeyCollectGameStatus]) error {
+	return status.Errorf(codes.Unimplemented, "method StartGame not implemented")
+}
+func (UnimplementedMatchServiceServer) CollectKey(grpc.BidiStreamingServer[KeyCollectRequest, KeyCollectGameStatus]) error {
+	return status.Errorf(codes.Unimplemented, "method CollectKey not implemented")
 }
 func (UnimplementedMatchServiceServer) mustEmbedUnimplementedMatchServiceServer() {}
 func (UnimplementedMatchServiceServer) testEmbeddedByValue()                      {}
@@ -106,6 +150,24 @@ func _MatchService_FindMatch_Handler(srv interface{}, stream grpc.ServerStream) 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type MatchService_FindMatchServer = grpc.ServerStreamingServer[MatchResponse]
 
+func _MatchService_StartGame_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(GameRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(MatchServiceServer).StartGame(m, &grpc.GenericServerStream[GameRequest, KeyCollectGameStatus]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MatchService_StartGameServer = grpc.ServerStreamingServer[KeyCollectGameStatus]
+
+func _MatchService_CollectKey_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(MatchServiceServer).CollectKey(&grpc.GenericServerStream[KeyCollectRequest, KeyCollectGameStatus]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type MatchService_CollectKeyServer = grpc.BidiStreamingServer[KeyCollectRequest, KeyCollectGameStatus]
+
 // MatchService_ServiceDesc is the grpc.ServiceDesc for MatchService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -118,6 +180,17 @@ var MatchService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "FindMatch",
 			Handler:       _MatchService_FindMatch_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "StartGame",
+			Handler:       _MatchService_StartGame_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "CollectKey",
+			Handler:       _MatchService_CollectKey_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "game.proto",
