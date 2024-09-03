@@ -1,8 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -22,6 +22,7 @@ type KeyGameSession struct {
 	playerKeys map[string]int32
 	gameOver   bool
 	winnerID   string
+	listeners  map[string]chan *gamepb.KeyCollectGameStatus
 }
 
 type MatchServer struct {
@@ -35,6 +36,15 @@ func NewMatchServer() *MatchServer {
 	return &MatchServer{
 		rooms:         make(map[string]*KeyGameSession),
 		currentRoomId: 1,
+	}
+}
+
+func NewKeyGameSession() *KeyGameSession {
+	return &KeyGameSession{
+		playerKeys: make(map[string]int32),
+		gameOver:   false,
+		winnerID:   "",
+		listeners:  make(map[string]chan *gamepb.KeyCollectGameStatus),
 	}
 }
 
@@ -127,29 +137,45 @@ func (s *MatchServer) StartGame(req *gamepb.GameRequest, stream gamepb.MatchServ
 	return nil
 }
 
-func (s *MatchServer) CollectKey(ctx context.Context, req *gamepb.KeyCollectRequest) (*gamepb.KeyCollectGameStatus, error) {
-	s.lock.Lock()
-	session, exists := s.rooms[req.RoomId]
-	if !exists {
+func (s *MatchServer) CollectKey(stream gamepb.MatchService_CollectKeyServer) error {
+	for {
+		req, err := stream.Recv() // クライアントからのリクエストを受け取る
+		if err == io.EOF {
+			return nil // クライアントからのストリーミング終了
+		}
+		if err != nil {
+			return err // 受信エラー
+		}
+
+		s.lock.Lock()
+		session, exists := s.rooms[req.RoomId]
+		if !exists {
+			session = NewKeyGameSession() // 新しいセッションを作成
+			s.rooms[req.RoomId] = session
+		}
+
+		// キーの総数を更新
+		session.playerKeys[req.PlayerId] = req.TotalKeys
+		if req.TotalKeys >= 5 {
+			session.gameOver = true
+			session.winnerID = req.PlayerId
+		}
+
+		status := &gamepb.KeyCollectGameStatus{
+			Message:    fmt.Sprintf("Player %s has collected %d keys", req.PlayerId, req.TotalKeys),
+			RoomId:     req.RoomId,
+			PlayerKeys: session.playerKeys,
+			GameOver:   session.gameOver,
+			WinnerId:   session.winnerID,
+			GameType:   req.GameType,
+		}
+
 		s.lock.Unlock()
-		return nil, fmt.Errorf("room not found")
-	}
 
-	session.playerKeys[req.PlayerId] = req.TotalKeys
-	if req.TotalKeys >= 5 {
-		session.gameOver = true
-		session.winnerID = req.PlayerId
+		if err := stream.Send(status); err != nil { // クライアントに状態を送信
+			return err
+		}
 	}
-	s.lock.Unlock()
-
-	return &gamepb.KeyCollectGameStatus{
-		Message:    "Key collected",
-		RoomId:     req.RoomId,
-		PlayerKeys: session.playerKeys,
-		GameOver:   session.gameOver,
-		WinnerId:   session.winnerID,
-		GameType:   req.GameType,
-	}, nil
 }
 
 func main() {

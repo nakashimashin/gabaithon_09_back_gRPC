@@ -17,7 +17,7 @@ message GameRequest {
 service MatchService {
     rpc FindMatch(MatchRequest) returns (stream MatchResponse);
     rpc StartGame(GameRequest) returns (stream KeyCollectGameStatus);
-    rpc CollectKey(KeyCollectRequest) returns (KeyCollectGameStatus);
+    rpc CollectKey(stream KeyCollectRequest) returns (stream KeyCollectGameStatus);
 }
 
 message MatchRequest {
